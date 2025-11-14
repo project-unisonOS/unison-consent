@@ -2,9 +2,6 @@ from fastapi import FastAPI, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 import uvicorn
-import os
-import httpx
-import json
 import time
 import uuid
 import logging
@@ -13,22 +10,44 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 
+# P0.2: Import RSA key manager and JWKS router
+try:
+    from .crypto import get_key_manager
+    from .jwks import router as jwks_router
+    from .settings import ConsentServiceSettings
+except ImportError:
+    # Fallback for direct execution
+    from crypto import get_key_manager
+    from jwks import router as jwks_router
+    from settings import ConsentServiceSettings
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+SETTINGS = ConsentServiceSettings.from_env()
+
 # Configuration
-SECRET_KEY = os.getenv("UNISON_CONSENT_SECRET", "consent-secret-key")
-ALGORITHM = "HS256"
-AUDIENCE = os.getenv("UNISON_CONSENT_AUDIENCE", "orchestrator")
-ISSUER = "unison-consent"
-DEFAULT_TTL = int(os.getenv("UNISON_CONSENT_DEFAULT_TTL", "3600"))  # 1 hour
+# P0.2: Removed SECRET_KEY and HS256 - now using RS256 with RSA keys
+ALGORITHM = SETTINGS.jwt.algorithm  # RS256 by default
+AUDIENCE = SETTINGS.jwt.audience
+ISSUER = SETTINGS.jwt.issuer
+DEFAULT_TTL = SETTINGS.jwt.default_ttl_seconds
+
+# P0.2: Initialize RSA key manager
+key_manager = get_key_manager(
+    keys_dir=SETTINGS.key_manager.keys_dir,
+    rotation_interval_hours=SETTINGS.key_manager.rotation_hours,
+)
 
 app = FastAPI(
     title="unison-consent",
     description="Consent management service for Unison platform",
     version="1.0.0"
 )
+
+# P0.2: Include JWKS router for public key distribution
+app.include_router(jwks_router, tags=["jwks"])
 
 # CORS middleware
 app.add_middleware(
@@ -92,18 +111,20 @@ def create_grant_jwt(
         "type": "consent_grant"
     }
     
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    # P0.2: Use RSA key manager to sign with RS256
+    return key_manager.sign_token(payload)
 
 def verify_grant_jwt(token: str) -> Dict[str, Any]:
     """Verify a grant JWT token"""
     try:
-        payload = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM],
-            audience= AUDIENCE,
-            issuer=ISSUER
-        )
+        # P0.2: Use RSA key manager to verify with RS256
+        payload = key_manager.verify_token(token)
+        
+        # Verify audience and issuer
+        if payload.get("aud") != AUDIENCE:
+            raise JWTError(f"Invalid audience: {payload.get('aud')}")
+        if payload.get("iss") != ISSUER:
+            raise JWTError(f"Invalid issuer: {payload.get('iss')}")
         
         # Check if grant is revoked
         jti = payload.get("jti")
@@ -143,12 +164,12 @@ def issue_grant(
         "scopes": request.scopes,
         "purpose": request.purpose,
         "audience": request.audience,
-        "issued_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(seconds=request.ttl),
+        "issued_at": now_utc(),
+        "expires_at": now_utc() + timedelta(seconds=request.ttl),
         "context": request.context or {}
     }
     
-    expires_at = datetime.utcnow() + timedelta(seconds=request.ttl)
+    expires_at = now_utc() + timedelta(seconds=request.ttl)
     
     logger.info(f"Issued grant {jti} for subject {request.subject} with scopes {request.scopes}")
     
@@ -228,16 +249,32 @@ def list_grants(
     
     return {"grants": subject_grants}
 
+@app.get("/revoked")
+def get_revoked_grants():
+    """
+    Get list of revoked grant JTIs (P0.2)
+    
+    This endpoint allows services to check revocation status locally.
+    Clients should cache this list and refresh periodically (60 seconds).
+    """
+    return {
+        "revoked": list(revoked_grants),
+        "count": len(revoked_grants),
+        "cache_ttl": 60  # Suggest 60 second cache
+    }
+
+@app.get("/healthz")
 @app.get("/health")
 def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "unison-consent"}
 
+@app.get("/readyz")
 @app.get("/ready")
 def ready():
     """Readiness check endpoint"""
     return {"status": "ready", "service": "unison-consent"}
 
 if __name__ == "__main__":
-    port = int(os.getenv("UNISON_CONSENT_PORT", "7072"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=SETTINGS.app_port)
+from unison_common.datetime_utils import now_utc
