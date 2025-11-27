@@ -2,6 +2,9 @@
 
 Consent management service for the Unison platform, handling grant issuance, revocation, and verification.
 
+## Status
+Core service (active) — used by orchestrator/policy; runs on `7072` in devstack.
+
 ## Purpose
 
 - **Grant Issuance**: Issue JWT-based consent grants with specific scopes and purposes
@@ -68,6 +71,8 @@ Readiness check endpoint.
 
 Environment variables:
 
+- Copy `.env.example` to `.env` for local runs.
+
 - `UNISON_CONSENT_SECRET`: Secret key for signing JWTs (default: consent-secret-key)
 - `UNISON_CONSENT_AUDIENCE`: Default audience for grants (default: orchestrator)
 - `UNISON_CONSENT_DEFAULT_TTL`: Default TTL for grants in seconds (default: 3600)
@@ -116,4 +121,11 @@ curl -X POST http://localhost:7072/grants \
 curl -X POST http://localhost:7072/introspect \
   -H "Content-Type: application/json" \
   -d '{"token": "YOUR_JWT_TOKEN"}'
+```
+
+### Automated Tests
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -c ../constraints.txt -r requirements.txt
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 OTEL_SDK_DISABLED=true python -m pytest
 ```

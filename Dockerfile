@@ -2,24 +2,18 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends curl git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy source code
-COPY src/ ./src/
+COPY constraints.txt ./constraints.txt
+COPY unison-common /app/unison-common
+COPY unison-consent/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -c ./constraints.txt /app/unison-common \
+    && pip install --no-cache-dir -c ./constraints.txt -r requirements.txt
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash unison
-RUN chown -R unison:unison /app
-USER unison
+COPY unison-consent/src/ ./src/
+COPY unison-consent/tests/ ./tests/
 
-# Expose port
+ENV PYTHONPATH=/app/src
 EXPOSE 7072
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:7072/health || exit 1
-
-# Run the service
 CMD ["python", "src/main.py"]

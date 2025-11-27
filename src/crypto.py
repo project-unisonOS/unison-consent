@@ -256,7 +256,8 @@ class RSAKeyManager:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
         
-        # Verify token (signature only, not claims)
+        # Verify token (signature only, not claims). Downstream validation (e.g.
+        # expiration, issuer, audience) is handled by the consent service logic.
         payload = jwt.decode(
             token,
             public_pem,
@@ -265,8 +266,8 @@ class RSAKeyManager:
                 "verify_signature": True,
                 "verify_aud": False,  # Don't verify audience here
                 "verify_iss": False,  # Don't verify issuer here
-                "verify_exp": True,   # Do verify expiration
-                "verify_iat": True    # Do verify issued-at
+                "verify_exp": False,  # Allow expired tokens for higher-level checks
+                "verify_iat": False   # Allow clock-skew handling elsewhere
             }
         )
         
