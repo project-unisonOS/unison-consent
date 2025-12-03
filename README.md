@@ -38,6 +38,10 @@ Issue a new consent grant.
 }
 ```
 
+## Docs
+
+Full docs at https://project-unisonos.github.io
+
 ### POST /revoke
 Revoke a consent grant.
 
