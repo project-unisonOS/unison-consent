@@ -42,6 +42,16 @@ Issue a new consent grant.
 
 Full docs at https://project-unisonos.github.io
 
+### BCI scopes (new)
+- `bci.raw.read` — subscribe to raw neural streams (research/diagnostics).
+- `bci.intent.subscribe` — receive decoded BCI intents/events.
+- `bci.device.pair` — pair/attach BCI hardware.
+- `bci.profile.manage` — read/write BCI profile block.
+- `bci.export` — export neural recordings (XDF/EDF).
+- `bci.hid.map` — manage virtual HID mappings.
+
+BCI grants should be explicit, short-lived for raw/export, and logged via `unison-policy`.
+
 ### POST /revoke
 Revoke a consent grant.
 

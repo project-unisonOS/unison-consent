@@ -61,6 +61,35 @@ app.add_middleware(
 # Security
 security = HTTPBearer(auto_error=False)
 
+# Recognized BCI scopes (used for validation/logging; does not block unknown scopes)
+BCI_SCOPES = {
+    "bci.raw.read",
+    "bci.intent.subscribe",
+    "bci.device.pair",
+    "bci.profile.manage",
+    "bci.export",
+    "bci.hid.map",
+}
+ALLOWED_SCOPE_PREFIXES = ("unison.", "bci.")
+
+
+def _validate_scopes(scopes: List[str]) -> List[str]:
+    if not scopes or not isinstance(scopes, list):
+        raise HTTPException(status_code=400, detail="Invalid scopes - must be non-empty list")
+    cleaned: List[str] = []
+    for s in scopes:
+        if not isinstance(s, str) or not s.strip():
+            raise HTTPException(status_code=400, detail="Each scope must be a non-empty string")
+        cleaned.append(s.strip())
+    # Warn (do not block) on unexpected scopes
+    unknown = [
+        s for s in cleaned
+        if not s.startswith(ALLOWED_SCOPE_PREFIXES) and s not in BCI_SCOPES
+    ]
+    if unknown:
+        logger.warning(f"Unknown scopes requested: {unknown}")
+    return cleaned
+
 # In-memory grant store (in production, use a proper database)
 grants_db = {}
 revoked_grants = set()
@@ -147,11 +176,12 @@ def issue_grant(
     # For now, allow any authenticated request
     
     jti = str(uuid.uuid4())
+    scopes = _validate_scopes(request.scopes)
     
     # Create JWT grant
     grant_jwt = create_grant_jwt(
         subject=request.subject,
-        scopes=request.scopes,
+        scopes=scopes,
         purpose=request.purpose,
         ttl=request.ttl,
         audience=request.audience,
@@ -161,7 +191,7 @@ def issue_grant(
     # Store grant metadata
     grants_db[jti] = {
         "subject": request.subject,
-        "scopes": request.scopes,
+        "scopes": scopes,
         "purpose": request.purpose,
         "audience": request.audience,
         "issued_at": now_utc(),
