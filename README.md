@@ -52,6 +52,11 @@ Full docs at https://project-unisonos.github.io
 
 BCI grants should be explicit, short-lived for raw/export, and logged via `unison-policy`.
 
+### Actuation scopes (new)
+- `actuation.*` — general actuation permission.
+- `actuation.home.*`, `actuation.robot.*`, `actuation.desktop.*` — finer scopes for device classes.
+- For high-risk actions, store the grant/consent id in `policy_context.consent_reference` in the Action Envelope so policy/audit can trace approvals.
+
 ### POST /revoke
 Revoke a consent grant.
 
