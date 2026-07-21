@@ -1,4 +1,4 @@
-from src.migration import migrate_legacy_grant
+from migration import migrate_legacy_grant
 
 
 def test_unknown_legacy_grant_is_disabled():
