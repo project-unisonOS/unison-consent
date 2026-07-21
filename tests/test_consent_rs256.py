@@ -7,7 +7,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime, timedelta
-from jose import jwt, JWTError
+from jose import jwt, JWTError, ExpiredSignatureError
 import uuid
 
 import sys
@@ -118,12 +118,9 @@ class TestConsentRSAKeyManager:
         
         token = key_manager.sign_token(payload, kid)
         
-        # Crypto module verifies signature but not all claims
-        # In production, consent_rs256 module checks expiration
-        decoded = key_manager.verify_token(token)
-        
-        # Manually verify it's expired
-        assert decoded["exp"] < int(now_utc().timestamp())
+        # Expiration is security-critical and must fail at token verification.
+        with pytest.raises(ExpiredSignatureError):
+            key_manager.verify_token(token)
     
     def test_consent_jwks_format(self, key_manager):
         """Test JWKS format for consent keys"""
