@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
+from unison_common.principal_middleware import PrincipalBindingMiddleware
 
 # P0.2: Import RSA key manager and JWKS router
 try:
@@ -48,6 +49,12 @@ app = FastAPI(
 
 # P0.2: Include JWKS router for public key distribution
 app.include_router(jwks_router, tags=["jwks"])
+app.add_middleware(
+    PrincipalBindingMiddleware,
+    service_name="consent",
+    public_paths={"/health", "/healthz", "/ready", "/readyz", "/jwks.json", "/.well-known/jwks.json", "/docs", "/openapi.json"},
+    allow_test_bypass=True,
+)
 
 # CORS middleware
 app.add_middleware(
@@ -306,5 +313,7 @@ def ready():
     return {"status": "ready", "service": "unison-consent"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=SETTINGS.app_port)
+    # Container entrypoint must listen on its network namespace; publishing and
+    # host exposure remain controlled by the deployment runtime.
+    uvicorn.run(app, host="0.0.0.0", port=SETTINGS.app_port)  # nosec B104
 from unison_common.datetime_utils import now_utc

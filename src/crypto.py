@@ -256,8 +256,8 @@ class RSAKeyManager:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
         
-        # Verify token (signature only, not claims). Downstream validation (e.g.
-        # expiration, issuer, audience) is handled by the consent service logic.
+        # Verify the signature and time-based claims here. Expired grants must
+        # fail closed before they reach higher-level consent service logic.
         payload = jwt.decode(
             token,
             public_pem,
@@ -266,8 +266,8 @@ class RSAKeyManager:
                 "verify_signature": True,
                 "verify_aud": False,  # Don't verify audience here
                 "verify_iss": False,  # Don't verify issuer here
-                "verify_exp": False,  # Allow expired tokens for higher-level checks
-                "verify_iat": False   # Allow clock-skew handling elsewhere
+                "verify_exp": True,   # Reject expired consent grants
+                "verify_iat": True    # Reject invalid issued-at claims
             }
         )
         
