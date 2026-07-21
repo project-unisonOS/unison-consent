@@ -256,7 +256,8 @@ class RSAKeyManager:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
         
-        # Verify token (signature only, not claims)
+        # Verify the signature and time-based claims here. Expired grants must
+        # fail closed before they reach higher-level consent service logic.
         payload = jwt.decode(
             token,
             public_pem,
@@ -265,8 +266,8 @@ class RSAKeyManager:
                 "verify_signature": True,
                 "verify_aud": False,  # Don't verify audience here
                 "verify_iss": False,  # Don't verify issuer here
-                "verify_exp": True,   # Do verify expiration
-                "verify_iat": True    # Do verify issued-at
+                "verify_exp": True,   # Reject expired consent grants
+                "verify_iat": True    # Reject invalid issued-at claims
             }
         )
         
