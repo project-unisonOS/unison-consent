@@ -7,8 +7,11 @@ on:
     tags: [ "v*" ]
 
 permissions:
+  attestations: write
+  artifact-metadata: write
   contents: read
   packages: write
+  security-events: write
   id-token: write
 
 jobs:
