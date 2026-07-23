@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   publish:
-    uses: project-unisonOS/unison-platform/.github/workflows/reusable-build.yml@main
+    uses: project-unisonOS/unison-platform/.github/workflows/reusable-build.yml@master
     with:
       image_name: unison-consent
       domain: consent
