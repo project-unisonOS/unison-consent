@@ -8,4 +8,4 @@ pydantic==2.12.4
 cryptography==48.0.1
 
 # unison-common package (local install)
-git+https://github.com/project-unisonOS/unison-common.git@52d4b3dfdd71f15d8169b70e1dec05dc8a0c6f30
+git+https://github.com/project-unisonOS/unison-common.git@88bf3aefcd7bdf12496d99d50c41d04e9fdd09fd
